@@ -4,7 +4,6 @@ import 'core/injection/service_locator.dart';
 import 'logic/settings/settings_cubit.dart';
 import 'logic/settings/settings_state.dart';
 import 'presentation/screens/home/home_view.dart';
-// Nếu import home_view.dart bị đỏ, bấm Alt + Enter chọn import lại nhé
 
 class WeatherApp extends StatelessWidget {
   const WeatherApp({super.key});
