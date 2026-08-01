@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-// --- ĐƯỜNG DẪN IMPORT TRONG PROJECT ---
 import '../../../core/injection/service_locator.dart';
 import '../../../logic/weather/weather_cubit.dart';
 import '../../../logic/weather/weather_state.dart';
@@ -69,6 +68,23 @@ class _HomeContent extends StatelessWidget {
         ),
         centerTitle: true,
         actions: [
+          // Nút lưu/bỏ lưu thành phố đang xem — chỉ hiện khi đã có dữ liệu weather
+          BlocBuilder<WeatherCubit, WeatherState>(
+            buildWhen: (previous, current) => current is WeatherLoaded,
+            builder: (context, weatherState) {
+              if (weatherState is! WeatherLoaded) return const SizedBox.shrink();
+
+              final location = weatherState.weather.location;
+              final settingsCubit = context.watch<SettingsCubit>();
+              final isSaved = settingsCubit.isCitySaved(location);
+
+              return IconButton(
+                icon: Icon(isSaved ? Icons.star : Icons.star_border),
+                color: isSaved ? Colors.amber : null,
+                onPressed: () => settingsCubit.toggleSavedCity(location),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () => _openSearch(context),

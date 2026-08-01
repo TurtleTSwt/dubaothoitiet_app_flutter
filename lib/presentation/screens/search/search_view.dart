@@ -4,6 +4,7 @@ import '../../../core/injection/service_locator.dart';
 import '../../../logic/location/location_cubit.dart';
 import '../../../logic/location/location_state.dart';
 import '../../../logic/settings/settings_cubit.dart';
+import '../../../data/models/location_model.dart';
 import '../../../utils/constants/app_strings.dart';
 
 class SearchView extends StatelessWidget {
@@ -27,6 +28,18 @@ class _SearchContent extends StatefulWidget {
 
 class _SearchContentState extends State<_SearchContent> {
   final _searchController = TextEditingController();
+  bool _hasQuery = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      final hasQuery = _searchController.text.trim().isNotEmpty;
+      if (hasQuery != _hasQuery) {
+        setState(() => _hasQuery = hasQuery);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -40,6 +53,10 @@ class _SearchContentState extends State<_SearchContent> {
       // Gọi hàm searchCity của Dev A
       context.read<LocationCubit>().searchCity(query);
     }
+  }
+
+  void _selectCity(LocationModel city) {
+    Navigator.of(context).pop(city);
   }
 
   @override
@@ -82,9 +99,11 @@ class _SearchContentState extends State<_SearchContent> {
             ),
           ),
 
-          // 2. KẾT QUẢ TÌM KIẾM
+          // 2. KẾT QUẢ TÌM KIẾM (hoặc danh sách thành phố đã lưu nếu chưa gõ gì)
           Expanded(
-            child: BlocBuilder<LocationCubit, LocationState>(
+            child: !_hasQuery
+                ? _buildSavedCitiesList(context, strings)
+                : BlocBuilder<LocationCubit, LocationState>(
               builder: (context, state) {
                 // Đang tải tìm kiếm
                 if (state is LocationSearchLoading) {
@@ -139,7 +158,8 @@ class _SearchContentState extends State<_SearchContent> {
                   );
                 }
 
-                // Chưa tìm kiếm (trạng thái ban đầu)
+                // Chưa tìm kiếm (trạng thái ban đầu) — không xảy ra vì !_hasQuery
+                // đã được xử lý riêng ở trên, giữ lại cho an toàn
                 return Center(
                   child: Text(strings.searchTypeToStart),
                 );
@@ -148,6 +168,44 @@ class _SearchContentState extends State<_SearchContent> {
           ),
         ],
       ),
+    );
+  }
+
+  // Danh sách thành phố đã lưu — hiện khi ô tìm kiếm còn trống
+  Widget _buildSavedCitiesList(BuildContext context, AppStrings strings) {
+    final savedCities = context.watch<SettingsCubit>().state.savedCities;
+
+    if (savedCities.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            strings.noSavedCities,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: savedCities.length,
+      itemBuilder: (context, index) {
+        final city = savedCities[index];
+        return ListTile(
+          leading: const Icon(Icons.star, color: Colors.amber, size: 28),
+          title: Text(
+            city.name,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          subtitle: Text(city.country ?? ''),
+          trailing: IconButton(
+            icon: const Icon(Icons.close, size: 20),
+            onPressed: () => context.read<SettingsCubit>().toggleSavedCity(city),
+          ),
+          onTap: () => _selectCity(city),
+        );
+      },
     );
   }
 }

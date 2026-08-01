@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/errors/exceptions.dart';
 import '../../../logic/settings/settings_state.dart';
 import '../../../utils/constants/storage_keys.dart';
+import '../../models/location_model.dart';
 
 abstract class SettingsLocalDataSource {
   /// Đọc đơn vị nhiệt độ đã lưu. Trả về mặc định celsius nếu chưa từng lưu.
@@ -10,6 +13,10 @@ abstract class SettingsLocalDataSource {
 
   AppLanguage getLanguage();
   Future<void> setLanguage(AppLanguage language);
+
+  /// Luu thanh pho
+  List<LocationModel> getSavedCities();
+  Future<void> saveCities(List<LocationModel> cities);
 
   /// Lưu đơn vị nhiệt độ mới.
   Future<void> setTempUnit(TempUnit unit);
@@ -119,6 +126,26 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
     final success = await prefs.setString(StorageKeys.appLanguage, value);
     if (!success) {
       throw const CacheException('Không lưu được ngôn ngữ');
+    }
+  }
+
+  @override
+  List<LocationModel> getSavedCities() {
+    final raw = prefs.getString(StorageKeys.savedCities);
+    if (raw == null || raw.isEmpty) return [];
+
+    final decoded = jsonDecode(raw) as List<dynamic>;
+    return decoded
+        .map((e) => LocationModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<void> saveCities(List<LocationModel> cities) async {
+    final encoded = jsonEncode(cities.map((c) => c.toJson()).toList());
+    final success = await prefs.setString(StorageKeys.savedCities, encoded);
+    if (!success) {
+      throw const CacheException('Không lưu được danh sách thành phố');
     }
   }
 }

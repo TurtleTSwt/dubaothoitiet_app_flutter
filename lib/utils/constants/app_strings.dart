@@ -67,4 +67,11 @@ class AppStrings {
   String get openSettingsButton =>
       _isEn ? 'Open Settings' : 'Mở Cài đặt';
   String get tryAgainButton => _isEn ? 'Try again' : 'Thử lại';
+
+  // ===== Saved cities =====
+  String get savedCitiesTitle => _isEn ? 'Saved cities' : 'Thành phố đã lưu';
+  String get noSavedCities =>
+      _isEn ? 'No saved cities yet' : 'Chưa có thành phố nào được lưu';
+  String get citySaved => _isEn ? 'City saved' : 'Đã lưu thành phố';
+  String get cityRemoved => _isEn ? 'City removed' : 'Đã bỏ lưu thành phố';
 }

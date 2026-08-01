@@ -18,6 +18,9 @@ abstract class SettingsRepository {
 
   AppLanguage getLanguage();
   Future<Either<Failure, void>> setLanguage(AppLanguage language);
+
+  List<LocationModel> getSavedCities();
+  Future<Either<Failure, void>> saveCities(List<LocationModel> cities);
 }
 
 class SettingsRepositoryImpl implements SettingsRepository {
@@ -79,6 +82,19 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<Either<Failure, void>> setLanguage(AppLanguage language) async {
     try {
       await localDataSource.setLanguage(language);
+      return const Right(null);
+    } on CacheException catch (e) {
+      return Left(CacheFailure(e.message));
+    }
+  }
+
+  @override
+  List<LocationModel> getSavedCities() => localDataSource.getSavedCities();
+
+  @override
+  Future<Either<Failure, void>> saveCities(List<LocationModel> cities) async {
+    try {
+      await localDataSource.saveCities(cities);
       return const Right(null);
     } on CacheException catch (e) {
       return Left(CacheFailure(e.message));
