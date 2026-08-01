@@ -8,6 +8,9 @@ abstract class SettingsLocalDataSource {
   /// Đọc đơn vị nhiệt độ đã lưu. Trả về mặc định celsius nếu chưa từng lưu.
   TempUnit getTempUnit();
 
+  AppLanguage getLanguage();
+  Future<void> setLanguage(AppLanguage language);
+
   /// Lưu đơn vị nhiệt độ mới.
   Future<void> setTempUnit(TempUnit unit);
 
@@ -101,5 +104,21 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
     if (name == null || lat == null || lon == null) return null;
 
     return (name: name, lat: lat, lon: lon);
+  }
+
+  @override
+  AppLanguage getLanguage() {
+    final value = prefs.getString(StorageKeys.appLanguage);
+    if (value == 'en') return AppLanguage.en;
+    return AppLanguage.vi;
+  }
+
+  @override
+  Future<void> setLanguage(AppLanguage language) async {
+    final value = language == AppLanguage.en ? 'en' : 'vi';
+    final success = await prefs.setString(StorageKeys.appLanguage, value);
+    if (!success) {
+      throw const CacheException('Không lưu được ngôn ngữ');
+    }
   }
 }

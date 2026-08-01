@@ -31,7 +31,7 @@ class WeatherApp extends StatelessWidget {
               _ => ThemeMode.system,
             },
 
-            // ĐÃ SỬA: Đưa HomeView làm trang chủ chuẩn của app
+            // Đưa HomeView làm trang chủ chuẩn của app
             home: const HomeView(),
           );
         },

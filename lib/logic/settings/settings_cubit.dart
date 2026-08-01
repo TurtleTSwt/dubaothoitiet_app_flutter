@@ -10,6 +10,7 @@ class SettingsCubit extends Cubit<SettingsState> {
       : super(SettingsState(
           tempUnit: settingsRepository.getTempUnit(),
           themeMode: settingsRepository.getThemeMode(),
+          language: settingsRepository.getLanguage(),
         ));
 
   Future<void> changeTempUnit(TempUnit unit) async {
@@ -33,6 +34,16 @@ class SettingsCubit extends Cubit<SettingsState> {
     result.fold(
       (failure) => emit(state.copyWith(themeMode: state.themeMode)),
       (_) {},
+    );
+  }
+
+  Future<void> changeLanguage(AppLanguage language) async {
+    emit(state.copyWith(language: language));
+
+    final result = await settingsRepository.setLanguage(language);
+    result.fold(
+          (failure) => emit(state.copyWith(language: state.language)),
+          (_) {},
     );
   }
 }

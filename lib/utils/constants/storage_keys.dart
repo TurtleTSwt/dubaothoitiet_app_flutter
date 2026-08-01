@@ -8,6 +8,7 @@ class StorageKeys {
   // Settings
   static const String tempUnit = 'temp_unit';       // giá trị: 'celsius' | 'fahrenheit'
   static const String themeMode = 'theme_mode';     // giá trị: 'light' | 'dark' | 'system'
+  static const String appLanguage = 'app_language'; // giá trị: 'vi' | 'en'
 
   // Vị trí đã lưu lần cuối — để mở app lên hiển thị ngay, không phải chờ GPS
   static const String lastLat = 'last_lat';         // double

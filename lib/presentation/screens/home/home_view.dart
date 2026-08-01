@@ -5,7 +5,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/injection/service_locator.dart';
 import '../../../logic/weather/weather_cubit.dart';
 import '../../../logic/weather/weather_state.dart';
+import '../../../logic/settings/settings_cubit.dart';
+import '../../../logic/settings/settings_state.dart';
 import '../../../utils/helpers/weather_icon_mapper.dart';
+import '../../../utils/helpers/temp_convert.dart';
+import '../../../utils/constants/app_strings.dart';
 import '../search/search_view.dart';
 import '../settings/settings_view.dart';
 
@@ -48,14 +52,20 @@ class _HomeContent extends StatelessWidget {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final backgroundColor = isDarkMode ? const Color(0xFF121212) : const Color(0xFFF5F6FA);
 
+    // Lắng nghe settings hiện tại (đơn vị nhiệt độ + ngôn ngữ) từ SettingsCubit
+    // (SettingsCubit đã được provide ở tầng app.dart, chỉ cần watch lại ở đây)
+    final settingsState = context.watch<SettingsCubit>().state;
+    final tempUnit = settingsState.tempUnit;
+    final strings = AppStrings.of(settingsState.language);
+
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          'Thời Tiết',
-          style: TextStyle(fontWeight: FontWeight.w600),
+        title: Text(
+          strings.homeTitle,
+          style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         centerTitle: true,
         actions: [
@@ -72,7 +82,7 @@ class _HomeContent extends StatelessWidget {
       body: BlocBuilder<WeatherCubit, WeatherState>(
         builder: (context, state) {
           if (state is WeatherInitial) {
-            return _buildEmptyState(context);
+            return _buildEmptyState(context, strings);
           }
 
           if (state is WeatherLoading) {
@@ -80,7 +90,7 @@ class _HomeContent extends StatelessWidget {
           }
 
           if (state is WeatherError) {
-            return _buildErrorState(context, state.message);
+            return _buildErrorState(context, state.message, strings);
           }
 
           if (state is WeatherLoaded) {
@@ -100,8 +110,8 @@ class _HomeContent extends StatelessWidget {
                         vertical: 12,
                       ),
                       child: isWeb
-                          ? _buildWebLayout(context, weather, isDarkMode)
-                          : _buildMobileLayout(context, weather, isDarkMode),
+                          ? _buildWebLayout(context, weather, isDarkMode, tempUnit, strings)
+                          : _buildMobileLayout(context, weather, isDarkMode, tempUnit, strings),
                     ),
                   ),
                 );
@@ -116,29 +126,31 @@ class _HomeContent extends StatelessWidget {
   }
 
   // ==================== BỐ CỤC MOBILE (1 CỘT DỌC) ====================
-  Widget _buildMobileLayout(BuildContext context, dynamic weather, bool isDarkMode) {
+  Widget _buildMobileLayout(BuildContext context, dynamic weather, bool isDarkMode,
+      TempUnit tempUnit, AppStrings strings) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildCurrentWeatherCard(context, weather, isDarkMode),
+        _buildCurrentWeatherCard(context, weather, isDarkMode, tempUnit, strings),
         const SizedBox(height: 20),
-        _buildHourlySection(context, weather, isDarkMode),
+        _buildHourlySection(context, weather, isDarkMode, tempUnit, strings),
         const SizedBox(height: 20),
-        _buildDailySection(context, weather, isDarkMode),
+        _buildDailySection(context, weather, isDarkMode, tempUnit, strings),
         const SizedBox(height: 24),
       ],
     );
   }
 
   // ==================== BỐ CỤC WEB / DESKTOP (2 CỘT) ====================
-  Widget _buildWebLayout(BuildContext context, dynamic weather, bool isDarkMode) {
+  Widget _buildWebLayout(BuildContext context, dynamic weather, bool isDarkMode,
+      TempUnit tempUnit, AppStrings strings) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Cột trái: Thời tiết hiện tại
         Expanded(
           flex: 5,
-          child: _buildCurrentWeatherCard(context, weather, isDarkMode),
+          child: _buildCurrentWeatherCard(context, weather, isDarkMode, tempUnit, strings),
         ),
         const SizedBox(width: 24),
         // Cột phải: Dự báo giờ + Dự báo 7 ngày
@@ -147,9 +159,9 @@ class _HomeContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildHourlySection(context, weather, isDarkMode),
+              _buildHourlySection(context, weather, isDarkMode, tempUnit, strings),
               const SizedBox(height: 20),
-              _buildDailySection(context, weather, isDarkMode),
+              _buildDailySection(context, weather, isDarkMode, tempUnit, strings),
             ],
           ),
         ),
@@ -158,7 +170,8 @@ class _HomeContent extends StatelessWidget {
   }
 
   // ==================== THẺ THỜI TIẾT HIỆN TẠI ====================
-  Widget _buildCurrentWeatherCard(BuildContext context, dynamic weather, bool isDarkMode) {
+  Widget _buildCurrentWeatherCard(BuildContext context, dynamic weather, bool isDarkMode,
+      TempUnit tempUnit, AppStrings strings) {
     final current = weather.current;
     final cardBg = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
     final textColor = isDarkMode ? Colors.white : Colors.black87;
@@ -208,9 +221,9 @@ class _HomeContent extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Nhiệt độ lớn
+          // Nhiệt độ lớn — dùng TempConverter để hiện đúng °C hoặc °F
           Text(
-            '${current.temp}°',
+            TempConverter.format(current.temp, tempUnit),
             style: TextStyle(
               fontSize: 64,
               fontWeight: FontWeight.w200,
@@ -235,9 +248,24 @@ class _HomeContent extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildMiniStat('Cảm nhận', '${current.feelsLike ?? current.temp}°', textColor, subTextColor),
-              _buildMiniStat('Độ ẩm', '${current.humidity}%', textColor, subTextColor),
-              _buildMiniStat('Gió', '${current.windSpeed} m/s', textColor, subTextColor),
+              _buildMiniStat(
+                strings.feelsLike,
+                TempConverter.format(current.feelsLike ?? current.temp, tempUnit),
+                textColor,
+                subTextColor,
+              ),
+              _buildMiniStat(
+                strings.humidity,
+                '${current.humidity}%',
+                textColor,
+                subTextColor,
+              ),
+              _buildMiniStat(
+                strings.wind,
+                '${current.windSpeed} m/s',
+                textColor,
+                subTextColor,
+              ),
             ],
           ),
         ],
@@ -259,7 +287,8 @@ class _HomeContent extends StatelessWidget {
   }
 
   // ==================== DỰ BÁO 24 GIỜ (CÓ SCROLLBAR NGANG) ====================
-  Widget _buildHourlySection(BuildContext context, dynamic weather, bool isDarkMode) {
+  Widget _buildHourlySection(BuildContext context, dynamic weather, bool isDarkMode,
+      TempUnit tempUnit, AppStrings strings) {
     final List hourlyList = weather.hourly ?? [];
     final cardBg = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
     final textColor = isDarkMode ? Colors.white : Colors.black87;
@@ -295,9 +324,9 @@ class _HomeContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'DỰ BÁO THỜI TIẾT 24 GIỜ',
-            style: TextStyle(
+          Text(
+            strings.hourlyTitle,
+            style: const TextStyle(
               color: Colors.grey,
               fontSize: 13,
               fontWeight: FontWeight.bold,
@@ -307,10 +336,10 @@ class _HomeContent extends StatelessWidget {
           SizedBox(
             height: 125,
             child: hourlyList.isEmpty
-                ? const Center(
+                ? Center(
               child: Text(
-                'Chưa có dữ liệu theo giờ',
-                style: TextStyle(color: Colors.grey),
+                strings.noHourlyData,
+                style: const TextStyle(color: Colors.grey),
               ),
             )
                 : Builder(
@@ -359,7 +388,7 @@ class _HomeContent extends StatelessWidget {
                                 style: const TextStyle(fontSize: 24),
                               ),
                               Text(
-                                '${item.temp}°',
+                                TempConverter.format(item.temp, tempUnit),
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 15,
@@ -382,7 +411,8 @@ class _HomeContent extends StatelessWidget {
   }
 
   // ==================== DỰ BÁO 7 NGÀY (LIST DỌC) ====================
-  Widget _buildDailySection(BuildContext context, dynamic weather, bool isDarkMode) {
+  Widget _buildDailySection(BuildContext context, dynamic weather, bool isDarkMode,
+      TempUnit tempUnit, AppStrings strings) {
     final List dailyList = weather.daily ?? [];
     final cardBg = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
     final textColor = isDarkMode ? Colors.white : Colors.black87;
@@ -418,9 +448,9 @@ class _HomeContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'DỰ BÁO 7 NGÀY TỚI',
-            style: TextStyle(
+          Text(
+            strings.dailyTitle,
+            style: const TextStyle(
               color: Colors.grey,
               fontSize: 13,
               fontWeight: FontWeight.bold,
@@ -428,12 +458,12 @@ class _HomeContent extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           dailyList.isEmpty
-              ? const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
+              ? Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
             child: Center(
               child: Text(
-                'Chưa có dữ liệu 7 ngày',
-                style: TextStyle(color: Colors.grey),
+                strings.noDailyData,
+                style: const TextStyle(color: Colors.grey),
               ),
             ),
           )
@@ -469,7 +499,7 @@ class _HomeContent extends StatelessWidget {
                   Expanded(
                     flex: 2,
                     child: Text(
-                      '${item.tempMax ?? "--"}° / ${item.tempMin ?? "--"}°',
+                      '${TempConverter.format(item.tempMax, tempUnit)} / ${TempConverter.format(item.tempMin, tempUnit)}',
                       style: TextStyle(
                         fontSize: 15,
                         color: subTextColor,
@@ -487,22 +517,22 @@ class _HomeContent extends StatelessWidget {
   }
 
   // ==================== EMPTY & ERROR STATES ====================
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState(BuildContext context, AppStrings strings) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(Icons.cloud_queue, size: 80, color: Colors.grey),
           const SizedBox(height: 16),
-          const Text(
-            'Chưa có dữ liệu thời tiết',
-            style: TextStyle(fontSize: 18),
+          Text(
+            strings.emptyStateTitle,
+            style: const TextStyle(fontSize: 18),
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () => _openSearch(context),
             icon: const Icon(Icons.search),
-            label: const Text('Tìm thành phố ngay'),
+            label: Text(strings.searchCityButton),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blueAccent,
               foregroundColor: Colors.white,
@@ -514,7 +544,7 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildErrorState(BuildContext context, String message) {
+  Widget _buildErrorState(BuildContext context, String message, AppStrings strings) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -524,14 +554,14 @@ class _HomeContent extends StatelessWidget {
             const Icon(Icons.error_outline, size: 60, color: Colors.redAccent),
             const SizedBox(height: 16),
             Text(
-              'Lỗi: $message',
+              '${strings.errorPrefix}$message',
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.redAccent, fontSize: 16),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => _openSearch(context),
-              child: const Text('Thử lại'),
+              child: Text(strings.retryButton),
             ),
           ],
         ),

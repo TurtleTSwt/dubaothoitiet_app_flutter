@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/injection/service_locator.dart';
 import '../../../logic/location/location_cubit.dart';
 import '../../../logic/location/location_state.dart';
+import '../../../logic/settings/settings_cubit.dart';
+import '../../../utils/constants/app_strings.dart';
 
 class SearchView extends StatelessWidget {
   const SearchView({super.key});
@@ -42,9 +44,12 @@ class _SearchContentState extends State<_SearchContent> {
 
   @override
   Widget build(BuildContext context) {
+    // Lấy ngôn ngữ hiện tại từ SettingsCubit (đã provide sẵn ở app.dart)
+    final strings = AppStrings.of(context.watch<SettingsCubit>().state.language);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tìm kiếm thành phố'),
+        title: Text(strings.searchHint.replaceAll('...', '')),
         centerTitle: true,
       ),
       body: Column(
@@ -57,7 +62,7 @@ class _SearchContentState extends State<_SearchContent> {
               textInputAction: TextInputAction.search,
               onSubmitted: (_) => _onSearch(),
               decoration: InputDecoration(
-                hintText: 'Nhập tên thành phố (VD: Hanoi, London...)',
+                hintText: strings.searchHint,
                 // Biến icon kính lúp thành nút bấm được (phòng khi phím Enter trên Web không ăn)
                 prefixIcon: IconButton(
                   icon: const Icon(Icons.search, color: Colors.blue),
@@ -90,7 +95,7 @@ class _SearchContentState extends State<_SearchContent> {
                 if (state is LocationSearchError) {
                   return Center(
                     child: Text(
-                      'Có lỗi xảy ra: ${state.message}',
+                      '${strings.errorPrefix}${state.message}',
                       style: const TextStyle(color: Colors.red),
                     ),
                   );
@@ -98,12 +103,11 @@ class _SearchContentState extends State<_SearchContent> {
 
                 // Đã tải xong danh sách tìm kiếm
                 if (state is LocationSearchLoaded) {
-                  // TODO: Nếu chữ 'locations' bị đỏ -> xóa đi, gõ dấu chấm (.) rồi bấm Ctrl + Space để chọn biến danh sách của Dev A (VD: state.locations, state.results...)
                   final list = state.results;
 
                   if (list.isEmpty) {
-                    return const Center(
-                      child: Text('Không tìm thấy thành phố nào.'),
+                    return Center(
+                      child: Text(strings.searchNoResults),
                     );
                   }
 
@@ -136,8 +140,8 @@ class _SearchContentState extends State<_SearchContent> {
                 }
 
                 // Chưa tìm kiếm (trạng thái ban đầu)
-                return const Center(
-                  child: Text('Hãy nhập tên thành phố để tìm kiếm'),
+                return Center(
+                  child: Text(strings.searchTypeToStart),
                 );
               },
             ),

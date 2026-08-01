@@ -15,6 +15,9 @@ abstract class SettingsRepository {
 
   Future<Either<Failure, void>> saveLastLocation(LocationModel location);
   LocationModel? getLastLocation();
+
+  AppLanguage getLanguage();
+  Future<Either<Failure, void>> setLanguage(AppLanguage language);
 }
 
 class SettingsRepositoryImpl implements SettingsRepository {
@@ -67,5 +70,18 @@ class SettingsRepositoryImpl implements SettingsRepository {
     final data = localDataSource.getLastLocation();
     if (data == null) return null;
     return LocationModel(name: data.name, lat: data.lat, lon: data.lon);
+  }
+
+  @override
+  AppLanguage getLanguage() => localDataSource.getLanguage();
+
+  @override
+  Future<Either<Failure, void>> setLanguage(AppLanguage language) async {
+    try {
+      await localDataSource.setLanguage(language);
+      return const Right(null);
+    } on CacheException catch (e) {
+      return Left(CacheFailure(e.message));
+    }
   }
 }
